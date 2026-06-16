@@ -10,20 +10,25 @@ _PORTS_CACHE = []
 def fetch_live_ports() -> list[dict]:
     query = """
     [out:json][timeout:25];
-    node["seamark:type"="harbour"];
-    out body 200;
+    node["place"="city"]["capital"="yes"];
+    out body 150;
     """
     try:
-        response = requests.post("https://overpass-api.de/api/interpreter", data=query)
+        response = requests.post(
+            "https://overpass-api.de/api/interpreter", 
+            data=query, 
+            headers={'User-Agent': 'TradeCompliancePOC/1.0'}
+        )
         response.raise_for_status()
         data = response.json()
         
         ports = []
         for element in data.get("elements", []):
             tags = element.get("tags", {})
-            name = tags.get("name") or tags.get("seamark:name") or "Unnamed Port"
+            name = tags.get("name") or tags.get("name:en") or "Unnamed"
             if "Unnamed" in name:
                 continue
+            name = f"Port of {name}"
                 
             ports.append({
                 "osm_node_id": element["id"],
