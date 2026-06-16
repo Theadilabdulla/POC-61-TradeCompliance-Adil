@@ -21,7 +21,7 @@ function Topbar({ stationCount, isLoading }: TopbarProps) {
       <div className="flex items-center gap-3">
         <div className="w-3 h-3 rounded-full bg-[#38BDF8] animate-pulse shadow-[0_0_10px_#38BDF8]" />
         <h1 className="text-white font-mono font-bold tracking-widest text-sm uppercase">
-          GLOBAL TRADE MONITOR
+          TRADE COMPLIANCE PRODUCT TRACE
         </h1>
         <Badge variant="warning" className="ml-2">SYNTHETIC DATA</Badge>
       </div>
