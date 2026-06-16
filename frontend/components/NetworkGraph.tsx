@@ -30,6 +30,8 @@ const rawNodes = [
   { id: "2", position: { x: 0, y: 0 }, data: { label: "SINGAPORE HUB (DEST)" }, style: nodeStyle },
   { id: "3", position: { x: 0, y: 0 }, data: { label: "HAMBURG PORT (ORIGIN)" }, style: nodeStyle },
   { id: "4", position: { x: 0, y: 0 }, data: { label: "NEW YORK CUSTOMS (DEST)" }, style: nodeStyle },
+  { id: "6", position: { x: 0, y: 0 }, data: { label: "SHANGHAI PORT (ORIGIN)" }, style: nodeStyle },
+  { id: "7", position: { x: 0, y: 0 }, data: { label: "DUBAI FREEZONE (DEST)" }, style: nodeStyle },
   { id: "5", position: { x: 0, y: 0 }, data: { label: "GLOBAL COMPLIANCE CHECKPOINT" }, style: checkpointStyle },
 ];
 
@@ -58,6 +60,20 @@ const rawEdges = [
     labelBgStyle: { fill: "#030712", fillOpacity: 0.8 },
     markerEnd: { type: MarkerType.ArrowClosed, color: "#38BDF8" },
   },
+  {
+    id: "e6-5", source: "6", target: "5", animated: true, label: "SKU-7734-C (IN TRANSIT)",
+    style: { stroke: "#818CF8", strokeWidth: 2 },
+    labelStyle: { fill: "#818CF8", fontWeight: 700, fontFamily: "monospace", fontSize: 10 },
+    labelBgStyle: { fill: "#030712", fillOpacity: 0.8 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#818CF8" },
+  },
+  {
+    id: "e5-7", source: "5", target: "7", animated: true, label: "OFAC REVIEW",
+    style: { stroke: "#EF4444", strokeWidth: 2, strokeDasharray: "5 5" },
+    labelStyle: { fill: "#EF4444", fontWeight: 700, fontFamily: "monospace", fontSize: 10 },
+    labelBgStyle: { fill: "#030712", fillOpacity: 0.8 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: "#EF4444" },
+  },
 ];
 
 // Apply dagre auto-layout (LR = left-to-right flow)
@@ -69,6 +85,8 @@ export default function NetworkGraph({ statusFilter }: { statusFilter: string })
       if (statusFilter === "ALL") return true;
       if (statusFilter === "CUSTOMS_HOLD" && (edge.id === "e1-5" || edge.id === "e5-2")) return true;
       if (statusFilter === "CLEARED" && (edge.id === "e3-5" || edge.id === "e5-4")) return true;
+      if (statusFilter === "IN_TRANSIT" && (edge.id === "e6-5")) return true;
+      if (statusFilter === "OFAC_FLAGGED" && (edge.id === "e5-7")) return true;
       return false;
     });
   }, [statusFilter]);
