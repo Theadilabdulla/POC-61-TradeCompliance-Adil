@@ -41,7 +41,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function NetworkGraph({ statusFilter, ports, shipments }: NetworkGraphProps) {
   const { layoutedNodes, filteredEdges } = useMemo(() => {
-    // 1. Get Top 20 Ports + Checkpoint to prevent spaghetti graph
+    // 1. Get Top 20 Ports + Checkpoint
     const checkpoint = ports.find((p) => p.port_type === "checkpoint") || ports[0];
     const normalPorts = ports.filter((p) => p.port_type !== "checkpoint").slice(0, 20);
     const visiblePorts = [...normalPorts];
@@ -49,41 +49,72 @@ export default function NetworkGraph({ statusFilter, ports, shipments }: Network
       visiblePorts.push(checkpoint);
     }
     
-    const portNames = new Set(visiblePorts.map(p => p.name));
+    const portMap = new Map(visiblePorts.map(p => [p.name, p]));
 
-    // 2. Build Nodes
-    const rawNodes = visiblePorts.map((p) => ({
-      id: String(p.osm_node_id),
-      position: { x: 0, y: 0 },
-      data: { label: p.name.toUpperCase() },
-      style: p.port_type === "checkpoint" ? checkpointStyle : nodeStyle,
-    }));
-
-    // 3. Build Edges based on active shipments
-    const rawEdges: any[] = [];
-    const edgeKeySet = new Set<string>();
-
-    // Filter shipments
+    // 2. Filter shipments and collect active origins/dests
     const activeShipments = shipments.filter(
       (s) => statusFilter === "ALL" || s.status === statusFilter
     );
 
-    activeShipments.forEach((s) => {
-      // Only draw edges if ports are visible
-      if (!portNames.has(s.origin_port) || !portNames.has(s.destination_port)) return;
+    const activeOrigins = new Set<string>();
+    const activeDests = new Set<string>();
+    
+    activeShipments.forEach(s => {
+      if (portMap.has(s.origin_port) && portMap.has(s.destination_port)) {
+        activeOrigins.add(s.origin_port);
+        activeDests.add(s.destination_port);
+      }
+    });
 
-      const origin = visiblePorts.find(p => p.name === s.origin_port)!;
-      const dest = visiblePorts.find(p => p.name === s.destination_port)!;
+    // 3. Build Strict 3-Column Nodes (Origins -> Checkpoint -> Dests)
+    const rawNodes: any[] = [];
+    
+    rawNodes.push({
+      id: "checkpoint",
+      position: { x: 0, y: 0 },
+      data: { label: checkpoint.name.toUpperCase() },
+      style: checkpointStyle,
+    });
+
+    activeOrigins.forEach(name => {
+      const p = portMap.get(name)!;
+      rawNodes.push({
+        id: `origin-${p.osm_node_id}`,
+        position: { x: 0, y: 0 },
+        data: { label: `${p.name.toUpperCase()} (ORIGIN)` },
+        style: nodeStyle,
+      });
+    });
+
+    activeDests.forEach(name => {
+      const p = portMap.get(name)!;
+      rawNodes.push({
+        id: `dest-${p.osm_node_id}`,
+        position: { x: 0, y: 0 },
+        data: { label: `${p.name.toUpperCase()} (DEST)` },
+        style: nodeStyle,
+      });
+    });
+
+    // 4. Build Edges
+    const rawEdges: any[] = [];
+    const edgeKeySet = new Set<string>();
+
+    activeShipments.forEach((s) => {
+      if (!portMap.has(s.origin_port) || !portMap.has(s.destination_port)) return;
+
+      const origin = portMap.get(s.origin_port)!;
+      const dest = portMap.get(s.destination_port)!;
       const color = STATUS_COLORS[s.status] || "#6B7280";
 
       // Origin -> Checkpoint
-      const edge1Key = `${origin.osm_node_id}-${checkpoint.osm_node_id}-${s.status}`;
+      const edge1Key = `origin-${origin.osm_node_id}-checkpoint-${s.status}`;
       if (!edgeKeySet.has(edge1Key)) {
         edgeKeySet.add(edge1Key);
         rawEdges.push({
           id: edge1Key,
-          source: String(origin.osm_node_id),
-          target: String(checkpoint.osm_node_id),
+          source: `origin-${origin.osm_node_id}`,
+          target: "checkpoint",
           animated: true,
           style: { stroke: color, strokeWidth: 1.5, opacity: 0.6 },
           markerEnd: { type: MarkerType.ArrowClosed, color },
@@ -91,13 +122,13 @@ export default function NetworkGraph({ statusFilter, ports, shipments }: Network
       }
 
       // Checkpoint -> Destination
-      const edge2Key = `${checkpoint.osm_node_id}-${dest.osm_node_id}-${s.status}`;
+      const edge2Key = `checkpoint-dest-${dest.osm_node_id}-${s.status}`;
       if (!edgeKeySet.has(edge2Key)) {
         edgeKeySet.add(edge2Key);
         rawEdges.push({
           id: edge2Key,
-          source: String(checkpoint.osm_node_id),
-          target: String(dest.osm_node_id),
+          source: "checkpoint",
+          target: `dest-${dest.osm_node_id}`,
           animated: true,
           style: { stroke: color, strokeWidth: 1.5, opacity: 0.6, strokeDasharray: s.status === "OFAC_FLAGGED" ? "5 5" : "none" },
           label: s.status === "OFAC_FLAGGED" || s.status === "CUSTOMS_HOLD" ? s.status : undefined,
@@ -108,7 +139,7 @@ export default function NetworkGraph({ statusFilter, ports, shipments }: Network
       }
     });
 
-    // Apply layout
+    // Apply Dagre layout (Left-to-Right)
     const { nodes } = getLayoutedElements(rawNodes, rawEdges, "LR");
     return { layoutedNodes: nodes, filteredEdges: rawEdges };
   }, [statusFilter, ports, shipments]);
