@@ -93,48 +93,35 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
       });
     });
 
-    // 4. Build Edges
+    // 4. Build Edges (1 edge per active origin/dest based on current filter)
     const rawEdges: any[] = [];
-    const edgeKeySet = new Set<string>();
+    
+    // Determine edge color based on filter
+    const edgeColor = statusFilter === "ALL" ? "#6B7280" : (STATUS_COLORS[statusFilter] || "#6B7280");
+    const isDashed = statusFilter === "OFAC_FLAGGED";
 
-    activeShipments.forEach((s) => {
-      if (!portMap.has(s.origin_port) || !portMap.has(s.destination_port)) return;
+    activeOrigins.forEach(name => {
+      const p = portMap.get(name)!;
+      rawEdges.push({
+        id: `edge-orig-${p.osm_node_id}`,
+        from: `origin-${p.osm_node_id}`,
+        to: "checkpoint",
+        color: { color: edgeColor, highlight: edgeColor },
+        group: statusFilter,
+      });
+    });
 
-      const origin = portMap.get(s.origin_port)!;
-      const dest = portMap.get(s.destination_port)!;
-      const color = STATUS_COLORS[s.status] || "#6B7280";
-
-      // Origin -> Checkpoint
-      if (activeOrigins.has(s.origin_port)) {
-        const edge1Key = `origin-${origin.osm_node_id}-checkpoint-${s.status}`;
-        if (!edgeKeySet.has(edge1Key)) {
-          edgeKeySet.add(edge1Key);
-          rawEdges.push({
-            id: edge1Key,
-            from: `origin-${origin.osm_node_id}`,
-            to: "checkpoint",
-            color: { color, highlight: color },
-            group: s.status,
-          });
-        }
-      }
-
-      // Checkpoint -> Destination
-      if (activeDests.has(s.destination_port)) {
-        const edge2Key = `checkpoint-dest-${dest.osm_node_id}-${s.status}`;
-        if (!edgeKeySet.has(edge2Key)) {
-          edgeKeySet.add(edge2Key);
-          rawEdges.push({
-            id: edge2Key,
-            from: "checkpoint",
-            to: `dest-${dest.osm_node_id}`,
-            label: s.status === "OFAC_FLAGGED" || s.status === "CUSTOMS_HOLD" ? s.status : undefined,
-            color: { color, highlight: color },
-            dashes: s.status === "OFAC_FLAGGED" ? [5, 5] : false,
-            group: s.status,
-          });
-        }
-      }
+    activeDests.forEach(name => {
+      const p = portMap.get(name)!;
+      rawEdges.push({
+        id: `edge-dest-${p.osm_node_id}`,
+        from: "checkpoint",
+        to: `dest-${p.osm_node_id}`,
+        label: isDashed || statusFilter === "CUSTOMS_HOLD" ? statusFilter : undefined,
+        color: { color: edgeColor, highlight: edgeColor },
+        dashes: isDashed ? [5, 5] : false,
+        group: statusFilter,
+      });
     });
 
     const nodes = new DataSet(rawNodes);
