@@ -81,6 +81,12 @@ def _init_synthetic_data():
     if not checkpoint:
         checkpoint = {"osm_node_id": 999999999, "name": "GLOBAL COMPLIANCE CHECKPOINT", "country": "INT"}
         
+    if not origins or not destinations:
+        print("Warning: No valid origin/destination nodes found. Using fallback mock node.")
+        mock_node = {"osm_node_id": 1, "name": "Mock Port", "country": "US"}
+        origins = [mock_node]
+        destinations = [mock_node]
+        
     for _ in range(_TARGET_SHIPMENT_COUNT):
         _GENERATED_SHIPMENTS.append(_spawn_shipment(origins, destinations, checkpoint))
         
