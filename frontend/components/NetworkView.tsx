@@ -25,7 +25,6 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
   useEffect(() => {
     if (!containerRef.current || ports.length === 0) return;
 
-    // Cap to 20 ports + checkpoint
     const checkpoint = ports.find((p) => p.port_type === "checkpoint") || ports[0];
     const normalPorts = ports.filter((p) => p.port_type !== "checkpoint").slice(0, 20);
     const visiblePorts = [...normalPorts];
@@ -33,50 +32,85 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
       visiblePorts.push(checkpoint);
     }
     
-    const portNames = new Set(visiblePorts.map(p => p.name));
-
-    const rawNodes = visiblePorts.map((p) => ({
-      id: p.osm_node_id,
-      label: p.name.split(" ").slice(0, 2).join("\\n").toUpperCase(), // Shorten name
-      group: p.port_type === "checkpoint" ? "checkpoint" : "port",
-      title: `${p.name} · ${p.country} · Risk: ${p.risk_level}`,
-    }));
-
-    const rawEdges: any[] = [];
-    const edgeKeySet = new Set<string>();
+    const portMap = new Map(visiblePorts.map(p => [p.name, p]));
 
     const activeShipments = shipments.filter(
       (s) => statusFilter === "ALL" || s.status === statusFilter
     );
 
-    activeShipments.forEach((s) => {
-      if (!portNames.has(s.origin_port) || !portNames.has(s.destination_port)) return;
+    const activeOrigins = new Set<string>();
+    const activeDests = new Set<string>();
+    
+    activeShipments.forEach(s => {
+      if (portMap.has(s.origin_port) && portMap.has(s.destination_port)) {
+        activeOrigins.add(s.origin_port);
+        activeDests.add(s.destination_port);
+      }
+    });
 
-      const origin = visiblePorts.find(p => p.name === s.origin_port)!;
-      const dest = visiblePorts.find(p => p.name === s.destination_port)!;
+    const rawNodes: any[] = [];
+    
+    rawNodes.push({
+      id: "checkpoint",
+      label: checkpoint.name.split(" ").slice(0, 2).join("\\n").toUpperCase(),
+      group: "checkpoint",
+      title: "GLOBAL COMPLIANCE CHECKPOINT",
+      level: 1, // Middle column
+    });
+
+    activeOrigins.forEach(name => {
+      const p = portMap.get(name)!;
+      rawNodes.push({
+        id: `origin-${p.osm_node_id}`,
+        label: `${p.name.split(" ").slice(0, 2).join("\\n").toUpperCase()}\\n(ORIGIN)`,
+        group: "port",
+        title: `${p.name} · ${p.country} · Origin`,
+        level: 0, // Left column
+      });
+    });
+
+    activeDests.forEach(name => {
+      const p = portMap.get(name)!;
+      rawNodes.push({
+        id: `dest-${p.osm_node_id}`,
+        label: `${p.name.split(" ").slice(0, 2).join("\\n").toUpperCase()}\\n(DEST)`,
+        group: "port",
+        title: `${p.name} · ${p.country} · Destination`,
+        level: 2, // Right column
+      });
+    });
+
+    const rawEdges: any[] = [];
+    const edgeKeySet = new Set<string>();
+
+    activeShipments.forEach((s) => {
+      if (!portMap.has(s.origin_port) || !portMap.has(s.destination_port)) return;
+
+      const origin = portMap.get(s.origin_port)!;
+      const dest = portMap.get(s.destination_port)!;
       const color = STATUS_COLORS[s.status] || "#6B7280";
 
       // Origin -> Checkpoint
-      const edge1Key = `${origin.osm_node_id}-${checkpoint.osm_node_id}-${s.status}`;
+      const edge1Key = `origin-${origin.osm_node_id}-checkpoint-${s.status}`;
       if (!edgeKeySet.has(edge1Key)) {
         edgeKeySet.add(edge1Key);
         rawEdges.push({
           id: edge1Key,
-          from: origin.osm_node_id,
-          to: checkpoint.osm_node_id,
+          from: `origin-${origin.osm_node_id}`,
+          to: "checkpoint",
           color: { color, highlight: color },
           group: s.status,
         });
       }
 
       // Checkpoint -> Destination
-      const edge2Key = `${checkpoint.osm_node_id}-${dest.osm_node_id}-${s.status}`;
+      const edge2Key = `checkpoint-dest-${dest.osm_node_id}-${s.status}`;
       if (!edgeKeySet.has(edge2Key)) {
         edgeKeySet.add(edge2Key);
         rawEdges.push({
           id: edge2Key,
-          from: checkpoint.osm_node_id,
-          to: dest.osm_node_id,
+          from: "checkpoint",
+          to: `dest-${dest.osm_node_id}`,
           label: s.status === "OFAC_FLAGGED" || s.status === "CUSTOMS_HOLD" ? s.status : undefined,
           color: { color, highlight: color },
           dashes: s.status === "OFAC_FLAGGED" ? [5, 5] : false,
@@ -105,20 +139,26 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
       edges: {
         width: 1.5,
         arrows: { to: { enabled: true, scaleFactor: 0.6 } },
-        font: { face: "monospace", size: 8, color: "#6B7280", strokeWidth: 0 },
-        smooth: { enabled: true, type: "curvedCW", roundness: 0.15 },
+        font: { face: "monospace", size: 8, color: "#6B7280", strokeWidth: 0, align: "middle" },
+        smooth: { enabled: true, type: "cubicBezier", roundness: 0.5 },
       },
       groups: {
         port: { color: { background: "#0B1117", border: "#1F2937" } },
         checkpoint: { color: { background: "#111827", border: "#38BDF8" }, borderWidth: 1, shapeProperties: { borderDashes: [4, 4] } },
       },
-      physics: {
-        solver: "forceAtlas2Based",
-        forceAtlas2Based: { gravitationalConstant: -40, springLength: 200, damping: 0.8 },
-        stabilization: { iterations: 150 },
+      layout: {
+        hierarchical: {
+          enabled: true,
+          direction: "LR",
+          sortMethod: "directed",
+          levelSeparation: 350,
+          nodeSpacing: 100,
+        },
       },
-      interaction: { hover: true, tooltipDelay: 100 },
-      layout: { improvedLayout: true },
+      physics: {
+        enabled: false, // Hierarchical layout disables dynamic physics to maintain pristine structure
+      },
+      interaction: { hover: true, tooltipDelay: 100, dragNodes: true },
     };
 
     if (networkRef.current) {
