@@ -8,39 +8,31 @@ CACHE_FILE = "ports_cache.json"
 _PORTS_CACHE = []
 
 def fetch_live_ports() -> list[dict]:
-    query = """
-    [out:json][timeout:25];
-    node["place"="city"]["capital"="yes"];
-    out body 150;
-    """
     try:
-        response = requests.post(
-            "https://overpass-api.de/api/interpreter", 
-            data=query, 
-            headers={'User-Agent': 'TradeCompliancePOC/1.0'}
-        )
+        response = requests.get("https://raw.githubusercontent.com/lutangar/cities.json/master/cities.json")
         response.raise_for_status()
         data = response.json()
         
+        # Take an evenly spaced slice of 800 cities to ensure global distribution
+        step = max(1, len(data) // 800)
+        selected_cities = data[::step][:800]
+        
         ports = []
-        for element in data.get("elements", []):
-            tags = element.get("tags", {})
-            name = tags.get("name") or tags.get("name:en") or "Unnamed"
-            if "Unnamed" in name:
-                continue
-            name = f"Port of {name}"
+        for i, city in enumerate(selected_cities):
+            name = city.get("name", "Unnamed")
+            if not name: continue
                 
             ports.append({
-                "osm_node_id": element["id"],
-                "name": name,
-                "country": tags.get("is_in:country", "Unknown"),
-                "lat": element["lat"],
-                "lng": element["lon"],
+                "osm_node_id": 1000000 + i,
+                "name": f"Port of {name}",
+                "country": city.get("country", "INT"),
+                "lat": float(city.get("lat", 0.0)),
+                "lng": float(city.get("lng", 0.0)),
                 "port_type": "container_terminal",
-                "risk_level": random.choices(["LOW", "MEDIUM", "HIGH"], weights=[0.7, 0.2, 0.1])[0],
-                "active_shipments": 0, # Will be aggregated dynamically
+                "risk_level": random.choices(["LOW", "MEDIUM", "HIGH"], weights=[0.8, 0.15, 0.05])[0],
+                "active_shipments": 0,
             })
-            if len(ports) >= 150:
+            if len(ports) >= 800:
                 break
         
         # Always ensure we have a Global Checkpoint

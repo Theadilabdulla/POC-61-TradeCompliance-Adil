@@ -106,40 +106,61 @@ export default function Page() {
 
   // ── Fetch shipments ───────────────────────────────────────────────────
   useEffect(() => {
+    let isMounted = true;
     const fetchShipments = async () => {
       try {
-        setShipmentsLoading(true);
         const res = await fetch(`${API}/api/shipments?status=${statusFilter}`);
         if (res.ok) {
           const json = await res.json();
-          setShipments(json.data);
-          if (json.data.length > 0 && selectedSku === "SKU-9921-A") {
-            setSelectedSku(json.data[0].sku_id);
+          if (isMounted) {
+            setShipments(json.data);
+            if (json.data.length > 0 && selectedSku === "SKU-9921-A") {
+              setSelectedSku(json.data[0].sku_id);
+            }
           }
         }
       } catch {
         console.error("Shipments fetch failed");
       } finally {
-        setShipmentsLoading(false);
+        if (isMounted) setShipmentsLoading(false);
       }
     };
+    
+    // Initial fetch
+    setShipmentsLoading(true);
     fetchShipments();
-  }, [API, statusFilter]);
+    
+    // Poll every 3 seconds
+    const intervalId = setInterval(fetchShipments, 3000);
+    
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [API, statusFilter, selectedSku]);
 
   // ── Fetch alert count ─────────────────────────────────────────────────
   useEffect(() => {
+    let isMounted = true;
     const fetchAlerts = async () => {
       try {
         const res = await fetch(`${API}/api/alerts`);
         if (res.ok) {
           const json: AlertsResponse = await res.json();
-          setAlertCount(json.total);
+          if (isMounted) setAlertCount(json.total);
         }
       } catch {
         // Silently fail — alert count is non-critical
       }
     };
+    
     fetchAlerts();
+    const intervalId = setInterval(fetchAlerts, 3000);
+    
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
   }, [API]);
 
   // ── Derived values ────────────────────────────────────────────────────
