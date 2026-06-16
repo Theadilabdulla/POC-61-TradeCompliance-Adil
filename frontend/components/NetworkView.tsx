@@ -26,27 +26,40 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
     if (!containerRef.current || ports.length === 0) return;
 
     const checkpoint = ports.find((p) => p.port_type === "checkpoint") || ports[0];
-    const normalPorts = ports.filter((p) => p.port_type !== "checkpoint").slice(0, 20);
-    const visiblePorts = [...normalPorts];
-    if (checkpoint && !visiblePorts.find(p => p.osm_node_id === checkpoint.osm_node_id)) {
-      visiblePorts.push(checkpoint);
-    }
     
-    const portMap = new Map(visiblePorts.map(p => [p.name, p]));
+    // 1. Build map of ALL ports
+    const portMap = new Map(ports.map(p => [p.name, p]));
 
+    // 2. Filter active shipments
     const activeShipments = shipments.filter(
       (s) => statusFilter === "ALL" || s.status === statusFilter
     );
 
-    const activeOrigins = new Set<string>();
-    const activeDests = new Set<string>();
-    
+    // 3. Count traffic per port
+    const originCounts = new Map<string, number>();
+    const destCounts = new Map<string, number>();
     activeShipments.forEach(s => {
-      if (portMap.has(s.origin_port) && portMap.has(s.destination_port)) {
-        activeOrigins.add(s.origin_port);
-        activeDests.add(s.destination_port);
-      }
+       if (portMap.has(s.origin_port)) {
+         originCounts.set(s.origin_port, (originCounts.get(s.origin_port) || 0) + 1);
+       }
+       if (portMap.has(s.destination_port)) {
+         destCounts.set(s.destination_port, (destCounts.get(s.destination_port) || 0) + 1);
+       }
     });
+
+    // 4. Select top 10 busiest origins and top 10 busiest destinations
+    const topOrigins = Array.from(originCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(e => e[0]);
+
+    const topDests = Array.from(destCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(e => e[0]);
+      
+    const activeOrigins = new Set(topOrigins);
+    const activeDests = new Set(topDests);
 
     const rawNodes: any[] = [];
     
