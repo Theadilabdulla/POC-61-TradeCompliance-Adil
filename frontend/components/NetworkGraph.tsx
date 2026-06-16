@@ -41,6 +41,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function NetworkGraph({ statusFilter, ports, shipments }: NetworkGraphProps) {
   const { layoutedNodes, filteredEdges } = useMemo(() => {
+    if (!ports || ports.length === 0) return { layoutedNodes: [], filteredEdges: [] };
+
     const checkpoint = ports.find((p) => p.port_type === "checkpoint") || ports[0];
     
     // 1. Build map of ALL ports
