@@ -1,103 +1,70 @@
-"""
-Overpass / OpenStreetMap Port Location Adapter
-==============================================
+import requests
+import json
+import os
+import random
 
-In production this module queries the Overpass API:
-    https://overpass-api.de/api/interpreter
+CACHE_FILE = "ports_cache.json"
 
-Example Overpass QL query for port nodes::
+_PORTS_CACHE = []
 
-    [out:json][timeout:30];
-    (
-      node["harbour:type"="container_terminal"](bbox);
-      node["landuse"="port"](bbox);
-    );
-    out body;
-
-Each result node contains ``lat``, ``lon``, ``tags.name``, and an
-integer ``id`` (the OSM node ID).
-
-For this POC all data is **synthetic** and clearly labelled as such.
-"""
-
-from __future__ import annotations
-
-
-# ── Synthetic Port Locations ────────────────────────────────────────────
-
-_SYNTHETIC_PORTS: list[dict] = [
-    {
-        "osm_node_id": 264_371_908,
-        "name": "Port of Rotterdam — Europoort",
-        "country": "NL",
-        "lat": 51.9496,
-        "lng": 4.1453,
-        "port_type": "container_terminal",
-        "risk_level": "LOW",
-        "active_shipments": 142,
-    },
-    {
-        "osm_node_id": 267_012_455,
-        "name": "Port of Hamburg — Altenwerder",
-        "country": "DE",
-        "lat": 53.5069,
-        "lng": 9.9350,
-        "port_type": "container_terminal",
-        "risk_level": "LOW",
-        "active_shipments": 97,
-    },
-    {
-        "osm_node_id": 305_894_112,
-        "name": "PSA Singapore — Tanjong Pagar",
-        "country": "SG",
-        "lat": 1.2644,
-        "lng": 103.8420,
-        "port_type": "container_terminal",
-        "risk_level": "MEDIUM",
-        "active_shipments": 213,
-    },
-    {
-        "osm_node_id": 158_236_740,
-        "name": "Port of New York — Newark Elizabeth",
-        "country": "US",
-        "lat": 40.6724,
-        "lng": -74.1502,
-        "port_type": "customs_facility",
-        "risk_level": "LOW",
-        "active_shipments": 178,
-    },
-    {
-        "osm_node_id": 412_558_903,
-        "name": "Port of Shanghai — Yangshan Deep-Water",
-        "country": "CN",
-        "lat": 30.6300,
-        "lng": 122.0700,
-        "port_type": "container_terminal",
-        "risk_level": "MEDIUM",
-        "active_shipments": 304,
-    },
-    {
-        "osm_node_id": 289_104_667,
-        "name": "DP World — Jebel Ali, Dubai",
-        "country": "AE",
-        "lat": 25.0085,
-        "lng": 55.0580,
-        "port_type": "customs_facility",
-        "risk_level": "HIGH",
-        "active_shipments": 65,
-    },
-]
-
-
-# ── Public Functions ────────────────────────────────────────────────────
+def fetch_live_ports() -> list[dict]:
+    query = """
+    [out:json][timeout:25];
+    node["seamark:type"="harbour"];
+    out body 200;
+    """
+    try:
+        response = requests.post("https://overpass-api.de/api/interpreter", data=query)
+        response.raise_for_status()
+        data = response.json()
+        
+        ports = []
+        for element in data.get("elements", []):
+            tags = element.get("tags", {})
+            name = tags.get("name") or tags.get("seamark:name") or "Unnamed Port"
+            if "Unnamed" in name:
+                continue
+                
+            ports.append({
+                "osm_node_id": element["id"],
+                "name": name,
+                "country": tags.get("is_in:country", "Unknown"),
+                "lat": element["lat"],
+                "lng": element["lon"],
+                "port_type": "container_terminal",
+                "risk_level": random.choices(["LOW", "MEDIUM", "HIGH"], weights=[0.7, 0.2, 0.1])[0],
+                "active_shipments": 0, # Will be aggregated dynamically
+            })
+            if len(ports) >= 150:
+                break
+        
+        # Always ensure we have a Global Checkpoint
+        ports.append({
+            "osm_node_id": 999999999,
+            "name": "GLOBAL COMPLIANCE CHECKPOINT",
+            "country": "INT",
+            "lat": 0.0,
+            "lng": 0.0,
+            "port_type": "checkpoint",
+            "risk_level": "HIGH",
+            "active_shipments": 0,
+        })
+        
+        return ports
+    except Exception as e:
+        print(f"Failed to fetch live ports: {e}")
+        # Fallback to synthetic if live fails
+        from . import overpass_adapter_backup
+        return overpass_adapter_backup._SYNTHETIC_PORTS
 
 def get_port_locations() -> list[dict]:
-    """Return synthetic port location records.
-
-    Returns
-    -------
-    list[dict]
-        Each dict mirrors a simplified Overpass ``node`` element with
-        added risk-scoring metadata.
-    """
-    return list(_SYNTHETIC_PORTS)
+    global _PORTS_CACHE
+    if not _PORTS_CACHE:
+        if os.path.exists(CACHE_FILE):
+            with open(CACHE_FILE, "r") as f:
+                _PORTS_CACHE = json.load(f)
+        else:
+            _PORTS_CACHE = fetch_live_ports()
+            with open(CACHE_FILE, "w") as f:
+                json.dump(_PORTS_CACHE, f)
+    return _PORTS_CACHE

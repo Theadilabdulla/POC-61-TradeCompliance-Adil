@@ -3,53 +3,95 @@
 import { useEffect, useRef } from "react";
 import { Network } from "vis-network";
 import { DataSet } from "vis-data";
+import type { PortLocation, Shipment } from "@/types/api";
 
 interface NetworkViewProps {
   statusFilter: string;
+  ports: PortLocation[];
+  shipments: Shipment[];
 }
 
-const ALL_NODES = [
-  { id: 1, label: "ROTTERDAM\nPORT", group: "origin", title: "Origin Port · Netherlands · Risk: LOW" },
-  { id: 2, label: "SINGAPORE\nHUB", group: "destination", title: "Destination Hub · Singapore · Risk: MEDIUM" },
-  { id: 3, label: "HAMBURG\nPORT", group: "origin", title: "Origin Port · Germany · Risk: LOW" },
-  { id: 4, label: "NEW YORK\nCUSTOMS", group: "destination", title: "Destination · USA · Risk: LOW" },
-  { id: 5, label: "COMPLIANCE\nCHECKPOINT", group: "checkpoint", title: "Global Compliance Checkpoint · Risk: HIGH" },
-  { id: 6, label: "SHANGHAI\nPORT", group: "origin", title: "Origin Port · China · Risk: MEDIUM" },
-  { id: 7, label: "DUBAI\nFREEZONE", group: "destination", title: "Free Trade Zone · UAE · Risk: HIGH" },
-];
+const STATUS_COLORS: Record<string, string> = {
+  CLEARED: "#38BDF8",
+  IN_TRANSIT: "#818CF8",
+  CUSTOMS_HOLD: "#FBBF24",
+  OFAC_FLAGGED: "#EF4444",
+};
 
-const ALL_EDGES = [
-  { id: "e1", from: 1, to: 5, label: "SKU-9921-A", color: { color: "#FBBF24", highlight: "#FBBF24" }, dashes: true, group: "CUSTOMS_HOLD" },
-  { id: "e2", from: 5, to: 2, label: "CUSTOMS HOLD", color: { color: "#FBBF24", highlight: "#FBBF24" }, dashes: true, group: "CUSTOMS_HOLD" },
-  { id: "e3", from: 3, to: 5, label: "SKU-4412-B", color: { color: "#38BDF8", highlight: "#38BDF8" }, group: "CLEARED" },
-  { id: "e4", from: 5, to: 4, label: "CLEARED", color: { color: "#38BDF8", highlight: "#38BDF8" }, group: "CLEARED" },
-  { id: "e5", from: 6, to: 5, label: "SKU-7734-C", color: { color: "#818CF8", highlight: "#818CF8" }, group: "IN_TRANSIT" },
-  { id: "e6", from: 5, to: 7, label: "OFAC REVIEW", color: { color: "#EF4444", highlight: "#EF4444" }, dashes: [5, 5], group: "OFAC_FLAGGED" },
-];
-
-export default function NetworkView({ statusFilter }: NetworkViewProps) {
+export default function NetworkView({ statusFilter, ports, shipments }: NetworkViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || ports.length === 0) return;
 
-    const filteredEdges = ALL_EDGES.filter(
-      (e) => statusFilter === "ALL" || e.group === statusFilter
+    // Cap to 20 ports + checkpoint
+    const checkpoint = ports.find((p) => p.port_type === "checkpoint") || ports[0];
+    const normalPorts = ports.filter((p) => p.port_type !== "checkpoint").slice(0, 20);
+    const visiblePorts = [...normalPorts];
+    if (checkpoint && !visiblePorts.find(p => p.osm_node_id === checkpoint.osm_node_id)) {
+      visiblePorts.push(checkpoint);
+    }
+    
+    const portNames = new Set(visiblePorts.map(p => p.name));
+
+    const rawNodes = visiblePorts.map((p) => ({
+      id: p.osm_node_id,
+      label: p.name.split(" ").slice(0, 2).join("\\n").toUpperCase(), // Shorten name
+      group: p.port_type === "checkpoint" ? "checkpoint" : "port",
+      title: `${p.name} · ${p.country} · Risk: ${p.risk_level}`,
+    }));
+
+    const rawEdges: any[] = [];
+    const edgeKeySet = new Set<string>();
+
+    const activeShipments = shipments.filter(
+      (s) => statusFilter === "ALL" || s.status === statusFilter
     );
 
-    const nodes = new DataSet(ALL_NODES);
-    const edges = new DataSet(filteredEdges);
+    activeShipments.forEach((s) => {
+      if (!portNames.has(s.origin_port) || !portNames.has(s.destination_port)) return;
+
+      const origin = visiblePorts.find(p => p.name === s.origin_port)!;
+      const dest = visiblePorts.find(p => p.name === s.destination_port)!;
+      const color = STATUS_COLORS[s.status] || "#6B7280";
+
+      // Origin -> Checkpoint
+      const edge1Key = `${origin.osm_node_id}-${checkpoint.osm_node_id}-${s.status}`;
+      if (!edgeKeySet.has(edge1Key)) {
+        edgeKeySet.add(edge1Key);
+        rawEdges.push({
+          id: edge1Key,
+          from: origin.osm_node_id,
+          to: checkpoint.osm_node_id,
+          color: { color, highlight: color },
+          group: s.status,
+        });
+      }
+
+      // Checkpoint -> Destination
+      const edge2Key = `${checkpoint.osm_node_id}-${dest.osm_node_id}-${s.status}`;
+      if (!edgeKeySet.has(edge2Key)) {
+        edgeKeySet.add(edge2Key);
+        rawEdges.push({
+          id: edge2Key,
+          from: checkpoint.osm_node_id,
+          to: dest.osm_node_id,
+          label: s.status === "OFAC_FLAGGED" || s.status === "CUSTOMS_HOLD" ? s.status : undefined,
+          color: { color, highlight: color },
+          dashes: s.status === "OFAC_FLAGGED" ? [5, 5] : false,
+          group: s.status,
+        });
+      }
+    });
+
+    const nodes = new DataSet(rawNodes);
+    const edges = new DataSet(rawEdges);
 
     const options = {
       nodes: {
         shape: "box",
-        font: {
-          face: "monospace",
-          size: 10,
-          color: "#F1F5F9",
-          multi: true,
-        },
+        font: { face: "monospace", size: 10, color: "#F1F5F9", multi: true },
         color: {
           background: "#0B1117",
           border: "#1F2937",
@@ -61,25 +103,21 @@ export default function NetworkView({ statusFilter }: NetworkViewProps) {
         margin: { top: 10, bottom: 10, left: 12, right: 12 },
       },
       edges: {
-        width: 2,
+        width: 1.5,
         arrows: { to: { enabled: true, scaleFactor: 0.6 } },
         font: { face: "monospace", size: 8, color: "#6B7280", strokeWidth: 0 },
         smooth: { enabled: true, type: "curvedCW", roundness: 0.15 },
       },
       groups: {
-        origin: { color: { background: "#0B1117", border: "#38BDF8" } },
-        destination: { color: { background: "#0B1117", border: "#818CF8" } },
+        port: { color: { background: "#0B1117", border: "#1F2937" } },
         checkpoint: { color: { background: "#111827", border: "#38BDF8" }, borderWidth: 1, shapeProperties: { borderDashes: [4, 4] } },
       },
       physics: {
         solver: "forceAtlas2Based",
-        forceAtlas2Based: { gravitationalConstant: -60, springLength: 150, damping: 0.5 },
-        stabilization: { iterations: 100 },
+        forceAtlas2Based: { gravitationalConstant: -40, springLength: 200, damping: 0.8 },
+        stabilization: { iterations: 150 },
       },
-      interaction: {
-        hover: true,
-        tooltipDelay: 100,
-      },
+      interaction: { hover: true, tooltipDelay: 100 },
       layout: { improvedLayout: true },
     };
 
@@ -93,14 +131,14 @@ export default function NetworkView({ statusFilter }: NetworkViewProps) {
       networkRef.current?.destroy();
       networkRef.current = null;
     };
-  }, [statusFilter]);
+  }, [statusFilter, ports, shipments]);
 
   return (
     <div className="w-full h-full relative">
       <div ref={containerRef} className="w-full h-full bg-[#030712]" />
       <div className="absolute bottom-3 left-3 bg-[#0B1117]/80 backdrop-blur-md border border-[#1F2937] px-3 py-1.5 rounded-md">
         <span className="text-[9px] font-mono text-gray-400 uppercase tracking-wider">
-          vis-network · physics simulation
+          vis-network · physics simulation ({ports.length > 20 ? 20 : ports.length} nodes)
         </span>
       </div>
     </div>

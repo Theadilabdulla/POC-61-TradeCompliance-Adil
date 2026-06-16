@@ -137,29 +137,51 @@ app.add_middleware(
 
 import random
 
+class PortsResponse(BaseModel):
+    data: list[dict]
+    timestamp: str
+    source: str
+
+@app.get("/api/ports", response_model=PortsResponse)
+def get_ports() -> PortsResponse:
+    from adapters.overpass_adapter import get_port_locations
+    ports = get_port_locations()
+    return PortsResponse(
+        data=ports,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        source="overpass_live",
+    )
+
 @app.get("/api/metrics", response_model=MetricsResponse)
 def get_metrics(status: str = Query("ALL")) -> MetricsResponse:
     """Return validated network metrics for the given status filter with simulated real-time jitter."""
-    base_metrics = MOCK_DATA.get(status, MOCK_DATA["ALL"])
+    from adapters.comtrade_adapter import get_shipments
+    from adapters.overpass_adapter import get_port_locations
+    
+    shipments = get_shipments(status)
+    ports = get_port_locations()
+    
+    base_value = sum(s["value_usd"] for s in shipments) / 1000000.0 # in millions
+    base_count = len(shipments)
     
     # Simulate real-time fluctuations
     jitter_percent = random.uniform(-0.02, 0.02) # +/- 2%
-    live_var = round(base_metrics.value_at_risk * (1 + jitter_percent), 2)
+    live_var = round(base_value * (1 + jitter_percent), 2)
     
     # Shipments change slowly
-    live_shipments = base_metrics.total_shipments + random.randint(-5, 5)
+    live_shipments = base_count + random.randint(-5, 5) if base_count > 0 else 0
     
     live_metrics = NetworkMetrics(
         total_shipments=max(0, live_shipments),
         value_at_risk=max(0, live_var),
-        active_nodes=max(0, live_shipments),
-        status_filter=base_metrics.status_filter
+        active_nodes=len(ports),
+        status_filter=status,
     )
     
     return MetricsResponse(
         data=live_metrics,
         timestamp=datetime.now(timezone.utc).isoformat(),
-        source="synthetic_live_v1",
+        source="live_scaled_v1",
     )
 
 

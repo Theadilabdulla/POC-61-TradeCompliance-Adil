@@ -46,6 +46,7 @@ export default function Page() {
   // ── State ─────────────────────────────────────────────────────────────
   const [backendMetrics, setBackendMetrics] = useState<MetricsResponse | null>(null);
   const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [ports, setPorts] = useState<any[]>([]);
   const [alertCount, setAlertCount] = useState(0);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [selectedSku, setSelectedSku] = useState("SKU-9921-A");
@@ -54,6 +55,22 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [graphMode, setGraphMode] = useState<"reactflow" | "visnetwork">("reactflow");
   const [showTable, setShowTable] = useState(false);
+
+  // ── Fetch ports ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const fetchPorts = async () => {
+      try {
+        const res = await fetch(`${API}/api/ports`);
+        if (res.ok) {
+          const json = await res.json();
+          setPorts(json.data);
+        }
+      } catch (e) {
+        console.error("Ports fetch failed:", e);
+      }
+    };
+    fetchPorts();
+  }, [API]);
 
   // ── Fetch metrics ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -96,6 +113,9 @@ export default function Page() {
         if (res.ok) {
           const json = await res.json();
           setShipments(json.data);
+          if (json.data.length > 0 && selectedSku === "SKU-9921-A") {
+            setSelectedSku(json.data[0].sku_id);
+          }
         }
       } catch {
         console.error("Shipments fetch failed");
@@ -162,9 +182,9 @@ export default function Page() {
           {/* Graph view */}
           <div className="flex-1">
             {graphMode === "reactflow" ? (
-              <NetworkGraph statusFilter={statusFilter} />
+              <NetworkGraph statusFilter={statusFilter} ports={ports} shipments={shipments} />
             ) : (
-              <NetworkView statusFilter={statusFilter} />
+              <NetworkView statusFilter={statusFilter} ports={ports} shipments={shipments} />
             )}
           </div>
 

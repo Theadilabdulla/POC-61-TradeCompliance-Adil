@@ -90,3 +90,9 @@ export interface PortLocation {
   risk_level: "LOW" | "MEDIUM" | "HIGH";
   active_shipments: number;
 }
+
+export interface PortsResponse {
+  data: PortLocation[];
+  timestamp: string;
+  source: string;
+}
