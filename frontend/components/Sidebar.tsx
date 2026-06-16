@@ -1,109 +1,108 @@
 "use client";
 
-type Props = {
-  metrics: any;
-  isOpen: boolean;
-  onClose: () => void;
-  statusFilter: string;
-  setStatusFilter: (s: string) => void;
-};
+import { AlertTriangle, ShieldCheck, Download, FileText, Globe } from "lucide-react";
 
-export function Sidebar({ metrics, isOpen, onClose, statusFilter, setStatusFilter }: Props) {
-  const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+export function Sidebar({ metrics, isOpen, statusFilter, setStatusFilter }: any) {
+  
+  const downloadSampleData = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(metrics || {}, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", "trade_compliance_data.json");
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <aside 
-      className={`fixed top-20 right-4 h-[calc(100vh-100px)] w-[30%] min-w-[360px] glass rounded-2xl flex flex-col z-40 transform transition-all duration-300 ease-out shadow-2xl border border-[#1F2937] liquid-glow bg-[#0B1117]
-        ${isOpen ? "translate-x-0 opacity-100" : "translate-x-[120%] opacity-0 pointer-events-none"}
-      `}
-    >
-      <div className="flex items-center justify-between px-5 pt-5 border-b border-[#1F2937] pb-3">
-        <p className="text-[11px] tracking-widest text-[#38BDF8] font-bold uppercase">
-          GOVERNANCE & TRUST RAIL
-        </p>
-        <button 
-          onClick={onClose}
-          className="w-6 h-6 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition flex items-center justify-center text-sm font-bold cursor-pointer"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-5 py-4">
-        <div className="mb-6">
-          <h1 className="text-lg font-semibold text-white mb-1">
-            Trade Compliance Product Trace
-          </h1>
-          <p className="text-xs text-gray-400 mb-4">
-            Cross-Border Logistics · Real-Time Screening
-          </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <MetricCard label="Active Shipments" value={metrics?.total_shipments?.toLocaleString() || "0"} accent="cyan" />
-            <MetricCard label="Flagged/Held" value={metrics?.flagged_shipments?.toLocaleString() || "0"} />
-            <MetricCard label="Compliance Rate" value={`${metrics?.compliance_rate || 0}%`} />
-            <MetricCard label="Value at Risk (USD)" value={`$${((metrics?.total_value_usd || 0) / 1000000).toFixed(1)}M`} />
+    <aside className="w-full h-full bg-[#0B1117] p-6 overflow-y-auto font-mono flex flex-col justify-between text-xs border-l border-[#1F2937] z-30 shadow-2xl">
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-[#38BDF8]" />
+            <h2 className="text-white font-bold tracking-wider uppercase text-sm">GOVERNANCE RAIL</h2>
           </div>
         </div>
 
-        <div className="mb-6 border-t border-[#1F2937] pt-4">
-          <p className="text-[10px] tracking-widest text-gray-400 uppercase mb-3">
-            SECTION D — NETWORK FILTERS
-          </p>
+        {/* CONTROLS */}
+        <div className="bg-[#111827] border border-[#1F2937] p-4 rounded-xl mb-6">
+          <label className="text-gray-400 block mb-2 uppercase tracking-tight text-[10px]">Filter Network State:</label>
           <select 
-            className="w-full bg-[#030712] border border-[#1F2937] text-white text-xs p-2 rounded focus:border-[#38BDF8] outline-none"
-            value={statusFilter}
+            value={statusFilter} 
             onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full bg-[#030712] border border-[#1F2937] text-white p-2 rounded-md outline-none focus:border-[#38BDF8] transition-colors cursor-pointer"
           >
-            <option value="ALL">All Network Traffic</option>
-            <option value="Cleared">Cleared</option>
-            <option value="In Transit">In Transit</option>
-            <option value="Customs Hold">Customs Hold</option>
-            <option value="OFAC Flagged">OFAC Flagged</option>
+            <option value="ALL">ALL TRAFFIC</option>
+            <option value="IN_TRANSIT">IN TRANSIT</option>
+            <option value="CUSTOMS_HOLD">CUSTOMS HOLD</option>
+            <option value="OFAC_FLAGGED">OFAC FLAGGED / HIGH RISK</option>
+            <option value="CLEARED">CLEARED TRAFFIC</option>
           </select>
         </div>
 
-        <div className="mb-6 border-t border-[#1F2937] pt-4">
-          <p className="text-[10px] tracking-widest text-gray-400 uppercase mb-2">
-            SECTION B — WHY THIS MATTERS
-          </p>
-          <p className="text-xs text-gray-300 leading-relaxed font-sans">
-            Global trade operates on a delicate balance of speed and security. Tracking the exact geographic flow of SKUs while cross-referencing sanctions lists (like OFAC) in real-time ensures that trust rails keep pace with physical supply chains without causing multi-million dollar port bottlenecks.
-          </p>
+        {/* METRICS */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="bg-[#111827] border border-[#1F2937] p-3 rounded-xl">
+            <p className="text-gray-400 text-[10px] uppercase">Active Traces</p>
+            <p className="text-lg font-bold text-white mt-1">{metrics?.total_shipments || "..."}</p>
+          </div>
+          <div className="bg-[#111827] border border-[#1F2937] p-3 rounded-xl">
+            <p className="text-gray-400 text-[10px] uppercase">Value At Risk</p>
+            <p className="text-lg font-bold text-[#F43F5E] mt-1">{metrics?.value_at_risk || "..."}</p>
+          </div>
         </div>
 
-        <div className="mb-6 border-t border-[#1F2937] pt-4">
-          <p className="text-[10px] tracking-widest text-gray-400 uppercase mb-3">
-            SECTION C — WHO CONTROLS THE RAIL
-          </p>
-          <p className="text-xs text-gray-300 leading-relaxed font-sans">
-            This rail is governed by a fragmented alliance of national customs agencies, international maritime organizations, and global intelligence databases that dictate border fluidity.
-          </p>
+        {/* SKU CARDS */}
+        <div className="mb-6">
+          <h3 className="text-gray-400 font-bold mb-3 uppercase tracking-wider text-[10px] flex items-center gap-1">
+            <FileText className="w-3 h-3 text-[#38BDF8]" /> SKU Checkpoints
+          </h3>
+          <div className="space-y-2">
+            <div className="bg-[#1F2937]/40 border border-[#1F2937] p-3 rounded-lg flex flex-col gap-1">
+              <div className="flex justify-between text-white font-bold text-[11px]">
+                <span>SKU-9921-A</span>
+                <span className="text-[#FBBF24]">CUSTOMS HOLD</span>
+              </div>
+              <p className="text-gray-400 text-[10px]">Origin: Rotterdam | Dest: Singapore</p>
+            </div>
+            <div className="bg-[#1F2937]/40 border border-[#1F2937] p-3 rounded-lg flex flex-col gap-1">
+              <div className="flex justify-between text-white font-bold text-[11px]">
+                <span>SKU-4412-B</span>
+                <span className="text-[#38BDF8]">CLEARED</span>
+              </div>
+              <p className="text-gray-400 text-[10px]">Origin: Hamburg | Dest: New York</p>
+            </div>
+          </div>
         </div>
 
-        <div className="border-t border-[#1F2937] pt-4 mt-auto">
-          <a
-            href={`${API}/api/shipments/csv`}
-            target="_blank"
-            className="block w-full font-mono text-[11px] bg-white/5 border border-[#1F2937] text-white px-3 py-3 rounded-lg text-center hover:bg-[#38BDF8]/20 hover:border-[#38BDF8] transition cursor-pointer"
-          >
-            DOWNLOAD SAMPLE DATA
-          </a>
+        {/* CONTEXT PANELS */}
+        <div className="space-y-4 border-t border-[#1F2937] pt-4">
+          <div>
+            <h3 className="text-[#38BDF8] uppercase tracking-wider text-[10px] mb-1 font-bold flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" /> Why This Matters
+            </h3>
+            <p className="text-gray-400 leading-relaxed text-[11px]">
+              Global customs evasion accounts for billions in lost revenue. Mapping cross-border flows against active parameters enables instantaneous node-level validation.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-[#38BDF8] uppercase tracking-wider text-[10px] mb-1 font-bold flex items-center gap-1">
+              <Globe className="w-3 h-3" /> Who Controls the Rail
+            </h3>
+            <p className="text-gray-400 leading-relaxed text-[11px]">
+              Governed by inter-governmental customs alliances and sovereign port authorities processing international trade manifests.
+            </p>
+          </div>
         </div>
       </div>
-    </aside>
-  );
-}
 
-function MetricCard({ label, value, accent }: { label: string; value: string; accent?: "cyan" }) {
-  return (
-    <div className="bg-[#030712] border border-[#1F2937] rounded-xl p-3">
-      <p className={`text-sm font-bold ${accent === "cyan" ? "text-[#38BDF8]" : "text-white"}`}>
-        {value}
-      </p>
-      <p className="text-[10px] text-gray-400 mt-1 uppercase">
-        {label}
-      </p>
-    </div>
+      <div className="pt-4 mt-4 border-t border-[#1F2937]">
+        <button onClick={downloadSampleData} className="w-full bg-[#111827] border border-[#38BDF8]/40 hover:border-[#38BDF8] text-[#38BDF8] py-2 rounded-xl flex items-center justify-center gap-2 transition-all font-bold tracking-wider text-[11px]">
+          <Download className="w-3 h-3" /> DOWNLOAD DATA
+        </button>
+      </div>
+    </aside>
   );
 }
