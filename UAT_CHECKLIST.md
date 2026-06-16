@@ -1,23 +1,9 @@
-# User Acceptance Testing (UAT) - Phase 1
+# User Acceptance Testing (UAT) Checklist
 
-**Tester:** Adil Abdulla
-**Status:** ✅ ALL TESTS PASSED
+The following features have been verified against the project requirements:
 
-## Minimum Coverage Checklist:
-
-### Filters & Data Correctness
-- [x] Select "ALL" - Map displays all 800 global nodes.
-- [x] Select "OFAC Flagged" - Map visually filters to show only high-risk (Red) routes.
-- [x] Metric Cards accurately reflect the global "Active Shipments" and "Value at Risk" pulled from the FastAPI backend.
-
-### Interactions & Navigation
-- [x] Click the "✕" button on the Governance sidebar - Sidebar collapses smoothly off-screen.
-- [x] Click the "INTELLIGENCE PANEL ▲" button - Sidebar slides back onto the screen.
-- [x] 3D Map Navigation: Click and drag to pan across the globe.
-- [x] 3D Map Navigation: Right-click and drag to change the camera pitch/angle.
-- [x] 3D Map Navigation: Scroll wheel correctly zooms in and out of port locations.
-
-### Loading States & Edge Cases
-- [x] Topbar displays "SYNCING..." dynamically while waiting for backend payload.
-- [x] Topbar updates to actual node count once the FastAPI connection is established.
-- [x] UI does not crash if the backend metrics payload is briefly null.
+- [x] **Network Visualization:** React Flow node-link graph rendering.
+- [x] **Live API Integration:** FastAPI endpoints responding to filter queries.
+- [x] **Dynamic Sidebar:** Metrics update correctly when dropdown changes.
+- [x] **Documentation Panels:** Why This Matters / Who Controls the Rail visible.
+- [x] **Sample Data:** JSON download functional for audit trails.
