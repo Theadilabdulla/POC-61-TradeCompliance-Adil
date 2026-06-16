@@ -57,23 +57,34 @@ export default function Page() {
 
   // ── Fetch metrics ─────────────────────────────────────────────────────
   useEffect(() => {
-    const fetchMetrics = async () => {
+    let isMounted = true;
+    const fetchMetrics = async (showLoading = false) => {
+      if (showLoading) setIsLoading(true);
       try {
-        setIsLoading(true);
         setError(null);
         const res = await fetch(`${API}/api/metrics?status=${statusFilter}`);
         if (!res.ok) throw new Error(`API responded with status ${res.status}`);
         const json: MetricsResponse = await res.json();
-        setBackendMetrics(json);
+        if (isMounted) setBackendMetrics(json);
       } catch (e) {
         const message = e instanceof Error ? e.message : "Failed to connect to backend";
-        setError(message);
+        if (isMounted) setError(message);
         console.error("Metrics fetch failed:", e);
       } finally {
-        setIsLoading(false);
+        if (isMounted && showLoading) setIsLoading(false);
       }
     };
-    fetchMetrics();
+
+    // Initial fetch
+    fetchMetrics(true);
+
+    // Poll every 3 seconds for live jitter data
+    const intervalId = setInterval(() => fetchMetrics(false), 3000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
   }, [API, statusFilter]);
 
   // ── Fetch shipments ───────────────────────────────────────────────────

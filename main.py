@@ -135,14 +135,31 @@ app.add_middleware(
 )
 
 
+import random
+
 @app.get("/api/metrics", response_model=MetricsResponse)
 def get_metrics(status: str = Query("ALL")) -> MetricsResponse:
-    """Return validated network metrics for the given status filter."""
-    metrics = MOCK_DATA.get(status, MOCK_DATA["ALL"])
+    """Return validated network metrics for the given status filter with simulated real-time jitter."""
+    base_metrics = MOCK_DATA.get(status, MOCK_DATA["ALL"])
+    
+    # Simulate real-time fluctuations
+    jitter_percent = random.uniform(-0.02, 0.02) # +/- 2%
+    live_var = round(base_metrics.value_at_risk * (1 + jitter_percent), 2)
+    
+    # Shipments change slowly
+    live_shipments = base_metrics.total_shipments + random.randint(-5, 5)
+    
+    live_metrics = NetworkMetrics(
+        total_shipments=max(0, live_shipments),
+        value_at_risk=max(0, live_var),
+        active_nodes=max(0, live_shipments),
+        status_filter=base_metrics.status_filter
+    )
+    
     return MetricsResponse(
-        data=metrics,
+        data=live_metrics,
         timestamp=datetime.now(timezone.utc).isoformat(),
-        source="synthetic_v1",
+        source="synthetic_live_v1",
     )
 
 
