@@ -175,16 +175,25 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
     };
 
     if (networkRef.current) {
-      networkRef.current.destroy();
+      networkRef.current.setData({ nodes, edges });
+    } else {
+      networkRef.current = new Network(containerRef.current, { nodes, edges }, options);
     }
 
-    networkRef.current = new Network(containerRef.current, { nodes, edges }, options);
+    return () => {
+      // Don't destroy on every re-render, only on full unmount. 
+      // The dependency array might cause this to run. 
+      // Actually, if we return a cleanup that destroys it, it will destroy it on every re-render!
+    };
+  }, [statusFilter, ports, shipments]);
 
+  // Clean up only on unmount
+  useEffect(() => {
     return () => {
       networkRef.current?.destroy();
       networkRef.current = null;
     };
-  }, [statusFilter, ports, shipments]);
+  }, []);
 
   return (
     <div className="w-full h-full relative">

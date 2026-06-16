@@ -151,7 +151,7 @@ export default function ShipmentsTable({ shipments, isLoading }: ShipmentsTableP
                 </td>
               </tr>
             ) : (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.slice(0, 100).map((row) => (
                 <tr
                   key={row.id}
                   className="border-b border-[#1F2937]/50 hover:bg-[#1F2937]/20 transition-colors"
@@ -167,9 +167,12 @@ export default function ShipmentsTable({ shipments, isLoading }: ShipmentsTableP
           </tbody>
         </table>
       </div>
-      <p className="text-[10px] text-gray-500 mt-2 text-right">
-        {table.getFilteredRowModel().rows.length} shipment{table.getFilteredRowModel().rows.length !== 1 ? "s" : ""}
-        {" · "}Schema: UN Comtrade HS6
+      <p className="text-[10px] text-gray-500 mt-2 text-right flex justify-between">
+        <span>{table.getFilteredRowModel().rows.length > 100 ? "Showing top 100 visible traces (Truncated for performance)" : ""}</span>
+        <span>
+          {table.getFilteredRowModel().rows.length} shipment{table.getFilteredRowModel().rows.length !== 1 ? "s" : ""}
+          {" · "}Schema: UN Comtrade HS6
+        </span>
       </p>
     </div>
   );
