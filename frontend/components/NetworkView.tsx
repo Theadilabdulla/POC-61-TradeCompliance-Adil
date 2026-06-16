@@ -93,6 +93,7 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
       });
     });
 
+    // 4. Build Edges
     const rawEdges: any[] = [];
     const edgeKeySet = new Set<string>();
 
@@ -104,31 +105,35 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
       const color = STATUS_COLORS[s.status] || "#6B7280";
 
       // Origin -> Checkpoint
-      const edge1Key = `origin-${origin.osm_node_id}-checkpoint-${s.status}`;
-      if (!edgeKeySet.has(edge1Key)) {
-        edgeKeySet.add(edge1Key);
-        rawEdges.push({
-          id: edge1Key,
-          from: `origin-${origin.osm_node_id}`,
-          to: "checkpoint",
-          color: { color, highlight: color },
-          group: s.status,
-        });
+      if (activeOrigins.has(s.origin_port)) {
+        const edge1Key = `origin-${origin.osm_node_id}-checkpoint-${s.status}`;
+        if (!edgeKeySet.has(edge1Key)) {
+          edgeKeySet.add(edge1Key);
+          rawEdges.push({
+            id: edge1Key,
+            from: `origin-${origin.osm_node_id}`,
+            to: "checkpoint",
+            color: { color, highlight: color },
+            group: s.status,
+          });
+        }
       }
 
       // Checkpoint -> Destination
-      const edge2Key = `checkpoint-dest-${dest.osm_node_id}-${s.status}`;
-      if (!edgeKeySet.has(edge2Key)) {
-        edgeKeySet.add(edge2Key);
-        rawEdges.push({
-          id: edge2Key,
-          from: "checkpoint",
-          to: `dest-${dest.osm_node_id}`,
-          label: s.status === "OFAC_FLAGGED" || s.status === "CUSTOMS_HOLD" ? s.status : undefined,
-          color: { color, highlight: color },
-          dashes: s.status === "OFAC_FLAGGED" ? [5, 5] : false,
-          group: s.status,
-        });
+      if (activeDests.has(s.destination_port)) {
+        const edge2Key = `checkpoint-dest-${dest.osm_node_id}-${s.status}`;
+        if (!edgeKeySet.has(edge2Key)) {
+          edgeKeySet.add(edge2Key);
+          rawEdges.push({
+            id: edge2Key,
+            from: "checkpoint",
+            to: `dest-${dest.osm_node_id}`,
+            label: s.status === "OFAC_FLAGGED" || s.status === "CUSTOMS_HOLD" ? s.status : undefined,
+            color: { color, highlight: color },
+            dashes: s.status === "OFAC_FLAGGED" ? [5, 5] : false,
+            group: s.status,
+          });
+        }
       }
     });
 

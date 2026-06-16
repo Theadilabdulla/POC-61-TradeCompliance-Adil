@@ -121,34 +121,38 @@ export default function NetworkGraph({ statusFilter, ports, shipments }: Network
       const color = STATUS_COLORS[s.status] || "#6B7280";
 
       // Origin -> Checkpoint
-      const edge1Key = `origin-${origin.osm_node_id}-checkpoint-${s.status}`;
-      if (!edgeKeySet.has(edge1Key)) {
-        edgeKeySet.add(edge1Key);
-        rawEdges.push({
-          id: edge1Key,
-          source: `origin-${origin.osm_node_id}`,
-          target: "checkpoint",
-          animated: true,
-          style: { stroke: color, strokeWidth: 1.5, opacity: 0.6 },
-          markerEnd: { type: MarkerType.ArrowClosed, color },
-        });
+      if (activeOrigins.has(s.origin_port)) {
+        const edge1Key = `origin-${origin.osm_node_id}-checkpoint-${s.status}`;
+        if (!edgeKeySet.has(edge1Key)) {
+          edgeKeySet.add(edge1Key);
+          rawEdges.push({
+            id: edge1Key,
+            source: `origin-${origin.osm_node_id}`,
+            target: "checkpoint",
+            animated: true,
+            style: { stroke: color, strokeWidth: 1.5, opacity: 0.6 },
+            markerEnd: { type: MarkerType.ArrowClosed, color },
+          });
+        }
       }
 
       // Checkpoint -> Destination
-      const edge2Key = `checkpoint-dest-${dest.osm_node_id}-${s.status}`;
-      if (!edgeKeySet.has(edge2Key)) {
-        edgeKeySet.add(edge2Key);
-        rawEdges.push({
-          id: edge2Key,
-          source: "checkpoint",
-          target: `dest-${dest.osm_node_id}`,
-          animated: true,
-          style: { stroke: color, strokeWidth: 1.5, opacity: 0.6, strokeDasharray: s.status === "OFAC_FLAGGED" ? "5 5" : "none" },
-          label: s.status === "OFAC_FLAGGED" || s.status === "CUSTOMS_HOLD" ? s.status : undefined,
-          labelStyle: { fill: color, fontWeight: 700, fontFamily: "monospace", fontSize: 9 },
-          labelBgStyle: { fill: "#030712", fillOpacity: 0.8 },
-          markerEnd: { type: MarkerType.ArrowClosed, color },
-        });
+      if (activeDests.has(s.destination_port)) {
+        const edge2Key = `checkpoint-dest-${dest.osm_node_id}-${s.status}`;
+        if (!edgeKeySet.has(edge2Key)) {
+          edgeKeySet.add(edge2Key);
+          rawEdges.push({
+            id: edge2Key,
+            source: "checkpoint",
+            target: `dest-${dest.osm_node_id}`,
+            animated: true,
+            style: { stroke: color, strokeWidth: 1.5, opacity: 0.6, strokeDasharray: s.status === "OFAC_FLAGGED" ? "5 5" : "none" },
+            label: s.status === "OFAC_FLAGGED" || s.status === "CUSTOMS_HOLD" ? s.status : undefined,
+            labelStyle: { fill: color, fontWeight: 700, fontFamily: "monospace", fontSize: 9 },
+            labelBgStyle: { fill: "#030712", fillOpacity: 0.8 },
+            markerEnd: { type: MarkerType.ArrowClosed, color },
+          });
+        }
       }
     });
 
