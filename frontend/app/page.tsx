@@ -234,6 +234,7 @@ export default function Page() {
         <div className="w-96 h-full z-20 relative bg-[#0B1117] flex-shrink-0">
           <Sidebar
             metrics={metrics}
+            shipments={shipments}
             isOpen={true}
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}

@@ -14,16 +14,10 @@ interface RiskChartProps {
     total_shipments: number;
     status_filter: string;
   } | null;
+  shipments: any[];
 }
 
-const FULL_SEGMENTS: RiskSegment[] = [
-  { label: "Cleared", value: 786, color: "#38BDF8" },
-  { label: "In Transit", value: 420, color: "#818CF8" },
-  { label: "Customs Hold", value: 14, color: "#FBBF24" },
-  { label: "OFAC Flagged", value: 3, color: "#EF4444" },
-];
-
-export default function RiskChart({ metrics }: RiskChartProps) {
+export default function RiskChart({ metrics, shipments }: RiskChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -34,9 +28,21 @@ export default function RiskChart({ metrics }: RiskChartProps) {
     const radius = Math.min(width, height) / 2;
     const innerRadius = radius * 0.6;
 
-    // Determine which segments to highlight
+    // Calculate dynamic segments
+    const counts = { CLEARED: 0, IN_TRANSIT: 0, CUSTOMS_HOLD: 0, OFAC_FLAGGED: 0 };
+    shipments.forEach((s) => {
+      if (counts[s.status as keyof typeof counts] !== undefined) {
+        counts[s.status as keyof typeof counts]++;
+      }
+    });
+
     const activeFilter = metrics?.status_filter || "ALL";
-    const segments = FULL_SEGMENTS.map((s) => ({
+    const segments = [
+      { label: "Cleared", value: counts.CLEARED, color: "#38BDF8" },
+      { label: "In Transit", value: counts.IN_TRANSIT, color: "#818CF8" },
+      { label: "Customs Hold", value: counts.CUSTOMS_HOLD, color: "#FBBF24" },
+      { label: "OFAC Flagged", value: counts.OFAC_FLAGGED, color: "#EF4444" },
+    ].map((s) => ({
       ...s,
       opacity: activeFilter === "ALL" || s.label.toUpperCase().replace(" ", "_") === activeFilter ? 1 : 0.2,
     }));
@@ -107,7 +113,12 @@ export default function RiskChart({ metrics }: RiskChartProps) {
       <svg ref={svgRef} />
       {/* Legend */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
-        {FULL_SEGMENTS.map((seg) => (
+        {[
+          { label: "Cleared", color: "#38BDF8" },
+          { label: "In Transit", color: "#818CF8" },
+          { label: "Customs Hold", color: "#FBBF24" },
+          { label: "OFAC Flagged", color: "#EF4444" },
+        ].map((seg) => (
           <div key={seg.label} className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: seg.color }} />
             <span className="text-[9px] text-gray-400 font-mono">{seg.label}</span>

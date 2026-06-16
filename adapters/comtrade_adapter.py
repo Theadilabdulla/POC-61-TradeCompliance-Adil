@@ -144,7 +144,7 @@ def _progress_simulation():
                     "alert_id": str(uuid.uuid4()),
                     "severity": "CRITICAL",
                     "sku_id": s["sku_id"],
-                    "message": f"Shipment blocked: OFAC sanctions hit.",
+                    "message": f"Sanctions hit: Beneficiary matches official OFAC Sanctions List Data Schema blocklist.",
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "source": "OFAC Screening System",
                 })

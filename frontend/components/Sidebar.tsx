@@ -6,10 +6,11 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import DocumentPanel from "@/components/DocumentPanel";
 import AlertsFeed from "@/components/AlertsFeed";
 import RiskChart from "@/components/RiskChart";
-import type { NetworkMetrics } from "@/types/api";
+import type { NetworkMetrics, Shipment } from "@/types/api";
 
 interface SidebarProps {
   metrics: NetworkMetrics | null;
+  shipments: Shipment[];
   isOpen: boolean;
   statusFilter: string;
   setStatusFilter: (status: string) => void;
@@ -21,6 +22,7 @@ interface SidebarProps {
 
 export function Sidebar({
   metrics,
+  shipments,
   isOpen,
   statusFilter,
   setStatusFilter,
@@ -30,12 +32,14 @@ export function Sidebar({
   alertCount,
 }: SidebarProps) {
   const downloadSampleData = () => {
-    const dataStr =
-      "data:text/json;charset=utf-8," +
-      encodeURIComponent(JSON.stringify(metrics || {}, null, 2));
+    if (shipments.length === 0) return;
+    const headers = Object.keys(shipments[0]).join(",");
+    const rows = shipments.map(s => Object.values(s).map(v => `"${v}"`).join(","));
+    const csvStr = "data:text/csv;charset=utf-8," + encodeURIComponent([headers, ...rows].join("\n"));
+    
     const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", "trade_compliance_data.json");
+    downloadAnchor.setAttribute("href", csvStr);
+    downloadAnchor.setAttribute("download", "trade_compliance_shipments.csv");
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -100,7 +104,7 @@ export function Sidebar({
             <TabsContent value="metrics">
               {/* D3 Risk Chart */}
               <div className="bg-[#111827] border border-[#1F2937] p-4 rounded-xl mb-4">
-                <RiskChart metrics={metrics} />
+                <RiskChart metrics={metrics} shipments={shipments} />
               </div>
 
               {/* Metric Cards */}
