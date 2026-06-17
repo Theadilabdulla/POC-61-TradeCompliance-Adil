@@ -1,32 +1,25 @@
 {
-  "ALL": {
+  "ratio": {
+    "cleared_percentage": 70,
+    "customs_hold_percentage": 30,
     "total_shipments": 1000,
-    "value_at_risk": 1500.0,
-    "active_nodes": 1000,
-    "status_filter": "ALL"
+    "data_sources": {
+      "cleared": "UN Comtrade",
+      "customs_hold": "Overpass API / OpenStreetMap"
+    }
   },
-  "CLEARED": {
-    "total_shipments": 700,
-    "value_at_risk": 1050.0,
-    "active_nodes": 700,
-    "status_filter": "CLEARED"
-  },
-  "CUSTOMS_HOLD": {
-    "total_shipments": 300,
-    "value_at_risk": 450.0,
-    "active_nodes": 300,
-    "status_filter": "CUSTOMS_HOLD"
-  },
-  "OFAC_FLAGGED": {
-    "total_shipments": 0,
-    "value_at_risk": 0.0,
-    "active_nodes": 0,
-    "status_filter": "OFAC_FLAGGED"
-  },
-  "IN_TRANSIT": {
-    "total_shipments": 0,
-    "value_at_risk": 0.0,
-    "active_nodes": 0,
-    "status_filter": "IN_TRANSIT"
-  }
+  "carriers": [
+    "Maersk Line",
+    "MSC",
+    "CMA CGM",
+    "COSCO",
+    "Hapag-Lloyd",
+    "Evergreen"
+  ],
+  "hs_codes": [
+    { "code": "854430", "description": "Ignition wiring sets and other wiring sets" },
+    { "code": "870380", "description": "Vehicles, with only electric motor for propulsion" },
+    { "code": "850440", "description": "Static converters (e.g. rectifiers)" },
+    { "code": "853710", "description": "Boards, panels, consoles, desks, cabinets" }
+  ]
 }

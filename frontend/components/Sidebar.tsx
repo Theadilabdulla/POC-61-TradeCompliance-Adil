@@ -137,36 +137,39 @@ export function Sidebar({
                 </Tooltip>
               </div>
 
-              {/* SKU CARDS */}
+              {/* SKU CARDS — derived from live shipment data */}
               <div className="mb-4">
                 <h3 className="text-gray-400 font-bold mb-3 uppercase tracking-wider text-[10px] flex items-center gap-1">
                   <FileText className="w-3 h-3 text-[#38BDF8]" /> SKU Checkpoints
                 </h3>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => setSelectedSku("SKU-9921-A")}
-                    className={`w-full text-left bg-[#1F2937]/40 border p-3 rounded-lg flex flex-col gap-1 transition-colors ${
-                      selectedSku === "SKU-9921-A" ? "border-[#FBBF24]/50" : "border-[#1F2937] hover:border-[#1F2937]/80"
-                    }`}
-                  >
-                    <div className="flex justify-between text-white font-bold text-[11px]">
-                      <span>SKU-9921-A</span>
-                      <span className="text-[#FBBF24]">CUSTOMS HOLD</span>
-                    </div>
-                    <p className="text-gray-400 text-[10px]">Origin: Rotterdam | Dest: Singapore</p>
-                  </button>
-                  <button
-                    onClick={() => setSelectedSku("SKU-4412-B")}
-                    className={`w-full text-left bg-[#1F2937]/40 border p-3 rounded-lg flex flex-col gap-1 transition-colors ${
-                      selectedSku === "SKU-4412-B" ? "border-[#38BDF8]/50" : "border-[#1F2937] hover:border-[#1F2937]/80"
-                    }`}
-                  >
-                    <div className="flex justify-between text-white font-bold text-[11px]">
-                      <span>SKU-4412-B</span>
-                      <span className="text-[#38BDF8]">CLEARED</span>
-                    </div>
-                    <p className="text-gray-400 text-[10px]">Origin: Hamburg | Dest: New York</p>
-                  </button>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {(() => {
+                    const holdShipment = shipments.find(s => s.status === "CUSTOMS_HOLD");
+                    const clearedShipment = shipments.find(s => s.status === "CLEARED");
+                    const skuCards = [holdShipment, clearedShipment].filter(Boolean);
+                    if (skuCards.length === 0) return <p className="text-gray-500 text-[10px]">No shipments loaded</p>;
+                    return skuCards.map((s) => (
+                      <button
+                        key={s!.sku_id}
+                        onClick={() => setSelectedSku(s!.sku_id)}
+                        className={`w-full text-left bg-[#1F2937]/40 border p-3 rounded-lg flex flex-col gap-1 transition-colors ${
+                          selectedSku === s!.sku_id
+                            ? s!.status === "CUSTOMS_HOLD" ? "border-[#FBBF24]/50" : "border-[#38BDF8]/50"
+                            : "border-[#1F2937] hover:border-[#1F2937]/80"
+                        }`}
+                      >
+                        <div className="flex justify-between text-white font-bold text-[11px]">
+                          <span>{s!.sku_id}</span>
+                          <span className={s!.status === "CUSTOMS_HOLD" ? "text-[#FBBF24]" : "text-[#38BDF8]"}>
+                            {s!.status.replace("_", " ")}
+                          </span>
+                        </div>
+                        <p className="text-gray-400 text-[10px]">
+                          Origin: {s!.origin_port.replace("Port of ", "")} | Dest: {s!.destination_port.replace("Port of ", "")}
+                        </p>
+                      </button>
+                    ));
+                  })()}
                 </div>
               </div>
 

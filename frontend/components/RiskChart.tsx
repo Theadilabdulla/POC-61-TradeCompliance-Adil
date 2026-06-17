@@ -106,7 +106,7 @@ export default function RiskChart({ metrics, shipments }: RiskChartProps) {
       .attr("text-transform", "uppercase")
       .attr("letter-spacing", "1px")
       .text("TRACES");
-  }, [metrics]);
+  }, [metrics, shipments]);
 
   return (
     <div className="flex flex-col items-center">
