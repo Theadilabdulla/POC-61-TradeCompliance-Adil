@@ -22,8 +22,21 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<Network | null>(null);
 
+  // Check if current filter has matching shipments
+  const activeShipmentCount = shipments.filter(
+    (s) => statusFilter === "ALL" || s.status === statusFilter
+  ).length;
+  const isEmpty = activeShipmentCount === 0;
+
   useEffect(() => {
-    if (!containerRef.current || ports.length === 0) return;
+    if (!containerRef.current || ports.length === 0 || isEmpty) {
+      // Destroy existing network if filter goes empty
+      if (isEmpty && networkRef.current) {
+        networkRef.current.destroy();
+        networkRef.current = null;
+      }
+      return;
+    }
 
     const checkpoint = ports.find((p) => p.port_type === "checkpoint") || ports[0];
     
@@ -174,10 +187,8 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
 
     return () => {
       // Don't destroy on every re-render, only on full unmount. 
-      // The dependency array might cause this to run. 
-      // Actually, if we return a cleanup that destroys it, it will destroy it on every re-render!
     };
-  }, [statusFilter, ports, shipments]);
+  }, [statusFilter, ports, shipments, isEmpty]);
 
   // Clean up only on unmount
   useEffect(() => {
@@ -189,10 +200,27 @@ export default function NetworkView({ statusFilter, ports, shipments }: NetworkV
 
   return (
     <div className="w-full h-full relative">
-      <div ref={containerRef} className="w-full h-full bg-[#030712]" />
+      {isEmpty ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[#030712]">
+          <div className="bg-[#111827] border border-[#1F2937] rounded-xl px-8 py-6 text-center max-w-sm">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#1F2937] flex items-center justify-center">
+              <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+            </div>
+            <p className="text-white font-mono font-bold text-sm mb-1">NO SHIPMENTS FOUND</p>
+            <p className="text-gray-400 font-mono text-[10px] leading-relaxed">
+              No shipments match the <span className="text-[#FBBF24]">{statusFilter.replace("_", " ")}</span> filter.
+              The strict 70:30 ratio allocates traffic only to CLEARED and CUSTOMS HOLD statuses.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div ref={containerRef} className="w-full h-full bg-[#030712]" />
+      )}
       <div className="absolute bottom-3 left-3 bg-[#0B1117]/80 backdrop-blur-md border border-[#1F2937] px-3 py-1.5 rounded-md">
         <span className="text-[9px] font-mono text-gray-400 uppercase tracking-wider">
-          vis-network · physics simulation ({ports.length > 20 ? 20 : ports.length} nodes)
+          vis-network · {isEmpty ? "0 nodes" : `physics simulation (${ports.length > 20 ? 20 : ports.length} nodes)`}
         </span>
       </div>
     </div>

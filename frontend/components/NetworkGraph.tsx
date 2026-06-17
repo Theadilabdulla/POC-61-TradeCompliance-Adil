@@ -40,8 +40,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function NetworkGraph({ statusFilter, ports, shipments }: NetworkGraphProps) {
-  const { layoutedNodes, filteredEdges } = useMemo(() => {
-    if (!ports || ports.length === 0) return { layoutedNodes: [], filteredEdges: [] };
+  const { layoutedNodes, filteredEdges, isEmpty } = useMemo(() => {
+    if (!ports || ports.length === 0) return { layoutedNodes: [], filteredEdges: [], isEmpty: true };
 
     const checkpoint = ports.find((p) => p.port_type === "checkpoint") || ports[0];
     
@@ -52,6 +52,11 @@ export default function NetworkGraph({ statusFilter, ports, shipments }: Network
     const activeShipments = shipments.filter(
       (s) => statusFilter === "ALL" || s.status === statusFilter
     );
+
+    // If no shipments match this filter, return empty state
+    if (activeShipments.length === 0) {
+      return { layoutedNodes: [], filteredEdges: [], isEmpty: true };
+    }
 
     // 3. Count traffic per port
     const originCounts = new Map<string, number>();
@@ -145,22 +150,39 @@ export default function NetworkGraph({ statusFilter, ports, shipments }: Network
 
     // Apply Dagre layout (Left-to-Right)
     const { nodes } = getLayoutedElements(rawNodes, rawEdges, "LR");
-    return { layoutedNodes: nodes, filteredEdges: rawEdges };
+    return { layoutedNodes: nodes, filteredEdges: rawEdges, isEmpty: false };
   }, [statusFilter, ports, shipments]);
 
   return (
-    <div className="w-full h-full bg-[#030712]">
-      <ReactFlow
-        nodes={layoutedNodes}
-        edges={filteredEdges}
-        fitView
-        className="dark"
-        attributionPosition="bottom-left"
-        minZoom={0.2}
-      >
-        <Background color="#1F2937" gap={24} />
-        <Controls style={{ backgroundColor: "#111827", border: "1px solid #1F2937", fill: "#fff" }} />
-      </ReactFlow>
+    <div className="w-full h-full bg-[#030712] relative">
+      {isEmpty ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+          <div className="bg-[#111827] border border-[#1F2937] rounded-xl px-8 py-6 text-center max-w-sm">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#1F2937] flex items-center justify-center">
+              <svg className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+            </div>
+            <p className="text-white font-mono font-bold text-sm mb-1">NO SHIPMENTS FOUND</p>
+            <p className="text-gray-400 font-mono text-[10px] leading-relaxed">
+              No shipments match the <span className="text-[#FBBF24]">{statusFilter.replace("_", " ")}</span> filter.
+              The strict 70:30 ratio allocates traffic only to CLEARED and CUSTOMS HOLD statuses.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <ReactFlow
+          nodes={layoutedNodes}
+          edges={filteredEdges}
+          fitView
+          className="dark"
+          attributionPosition="bottom-left"
+          minZoom={0.2}
+        >
+          <Background color="#1F2937" gap={24} />
+          <Controls style={{ backgroundColor: "#111827", border: "1px solid #1F2937", fill: "#fff" }} />
+        </ReactFlow>
+      )}
     </div>
   );
 }
