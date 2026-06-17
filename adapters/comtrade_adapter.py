@@ -70,8 +70,9 @@ def _spawn_shipment(origins, destinations, checkpoint):
 
 def _init_synthetic_data():
     global _GENERATED_SHIPMENTS, _GENERATED_ALERTS, _LAST_UPDATE_TIME
-    if _LAST_UPDATE_TIME > 0:
+    if _LAST_UPDATE_TIME > 0 or len(_GENERATED_SHIPMENTS) > 0:
         return
+    _LAST_UPDATE_TIME = time.time()
         
     ports = get_port_locations()
     checkpoint = next((p for p in ports if p["osm_node_id"] == 999999999), None)
@@ -102,8 +103,6 @@ def _init_synthetic_data():
                 "source": "Customs Authority",
             })
         _GENERATED_SHIPMENTS.append(shipment)
-        
-    _LAST_UPDATE_TIME = time.time()
 
 def _progress_simulation():
     # Pass to maintain strict 70:30 ratio
