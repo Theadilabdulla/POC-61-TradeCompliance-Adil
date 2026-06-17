@@ -1,0 +1,17 @@
+{
+  "metrics": {
+    "total_shipments": 1000,
+    "status_distribution": {
+      "cleared": {
+        "count": 700,
+        "percentage": 70,
+        "data_source": "UN Comtrade"
+      },
+      "customs_hold": {
+        "count": 300,
+        "percentage": 30,
+        "data_source": "Overpass API / OpenStreetMap"
+      }
+    }
+  }
+}
