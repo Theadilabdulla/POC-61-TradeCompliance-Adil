@@ -1,17 +1,32 @@
 {
-  "metrics": {
+  "ALL": {
     "total_shipments": 1000,
-    "status_distribution": {
-      "cleared": {
-        "count": 700,
-        "percentage": 70,
-        "data_source": "UN Comtrade"
-      },
-      "customs_hold": {
-        "count": 300,
-        "percentage": 30,
-        "data_source": "Overpass API / OpenStreetMap"
-      }
-    }
+    "value_at_risk": 1500.0,
+    "active_nodes": 1000,
+    "status_filter": "ALL"
+  },
+  "CLEARED": {
+    "total_shipments": 700,
+    "value_at_risk": 1050.0,
+    "active_nodes": 700,
+    "status_filter": "CLEARED"
+  },
+  "CUSTOMS_HOLD": {
+    "total_shipments": 300,
+    "value_at_risk": 450.0,
+    "active_nodes": 300,
+    "status_filter": "CUSTOMS_HOLD"
+  },
+  "OFAC_FLAGGED": {
+    "total_shipments": 0,
+    "value_at_risk": 0.0,
+    "active_nodes": 0,
+    "status_filter": "OFAC_FLAGGED"
+  },
+  "IN_TRANSIT": {
+    "total_shipments": 0,
+    "value_at_risk": 0.0,
+    "active_nodes": 0,
+    "status_filter": "IN_TRANSIT"
   }
 }

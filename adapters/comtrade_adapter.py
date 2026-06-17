@@ -9,7 +9,7 @@ _GENERATED_ALERTS = []
 _GENERATED_DOCUMENTS = {}
 
 _LAST_UPDATE_TIME = 0.0
-_TARGET_SHIPMENT_COUNT = 500
+_TARGET_SHIPMENT_COUNT = 1000
 
 CARRIERS = ["Maersk Line", "MSC", "CMA CGM", "COSCO", "Hapag-Lloyd", "Evergreen"]
 HS_CODES = [
@@ -25,7 +25,7 @@ def _spawn_shipment(origins, destinations, checkpoint):
     while dest["osm_node_id"] == origin["osm_node_id"]:
         dest = random.choice(destinations)
         
-    status = random.choices(["IN_TRANSIT", "CLEARED"], weights=[0.9, 0.1])[0]
+    status = "CLEARED"  # Will be overridden in init
     hs_code, desc = random.choice(HS_CODES)
     sku = f"SKU-{random.randint(1000, 9999)}-{random.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
     
@@ -87,82 +87,27 @@ def _init_synthetic_data():
         origins = [mock_node]
         destinations = [mock_node]
         
-    for _ in range(_TARGET_SHIPMENT_COUNT):
-        _GENERATED_SHIPMENTS.append(_spawn_shipment(origins, destinations, checkpoint))
+    for i in range(_TARGET_SHIPMENT_COUNT):
+        shipment = _spawn_shipment(origins, destinations, checkpoint)
+        if i < 700:
+            shipment["status"] = "CLEARED"
+        else:
+            shipment["status"] = "CUSTOMS_HOLD"
+            _GENERATED_ALERTS.append({
+                "alert_id": str(uuid.uuid4()),
+                "severity": "WARNING",
+                "sku_id": shipment["sku_id"],
+                "message": f"Shipment held pending physical verification.",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "source": "Customs Authority",
+            })
+        _GENERATED_SHIPMENTS.append(shipment)
         
     _LAST_UPDATE_TIME = time.time()
 
 def _progress_simulation():
-    global _GENERATED_SHIPMENTS, _GENERATED_ALERTS, _LAST_UPDATE_TIME
-    now = time.time()
-    dt = now - _LAST_UPDATE_TIME
-    if dt < 1.0:
-        return # Only progress if at least 1 second passed
-    _LAST_UPDATE_TIME = now
-    
-    ports = get_port_locations()
-    checkpoint = next((p for p in ports if p["osm_node_id"] == 999999999), None)
-    origins = [p for p in ports if p["osm_node_id"] != 999999999]
-    destinations = [p for p in ports if p["osm_node_id"] != 999999999]
-    if not origins or not checkpoint:
-        return
-
-    new_shipments = []
-    
-    # Probabilities per second
-    p_transit_to_cleared = 0.05 * dt
-    p_transit_to_hold = 0.02 * dt
-    p_hold_to_cleared = 0.10 * dt
-    p_hold_to_ofac = 0.05 * dt
-    
-    for s in _GENERATED_SHIPMENTS:
-        s["_age"] += dt
-        
-        # State transitions
-        if s["status"] == "IN_TRANSIT":
-            if random.random() < p_transit_to_cleared:
-                s["status"] = "CLEARED"
-            elif random.random() < p_transit_to_hold:
-                s["status"] = "CUSTOMS_HOLD"
-                _GENERATED_ALERTS.append({
-                    "alert_id": str(uuid.uuid4()),
-                    "severity": "WARNING",
-                    "sku_id": s["sku_id"],
-                    "message": f"Shipment held pending physical verification.",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "source": "Customs Authority",
-                })
-        elif s["status"] == "CUSTOMS_HOLD":
-            if random.random() < p_hold_to_cleared:
-                s["status"] = "CLEARED"
-                # Clear related alerts
-                _GENERATED_ALERTS = [a for a in _GENERATED_ALERTS if a["sku_id"] != s["sku_id"]]
-            elif random.random() < p_hold_to_ofac:
-                s["status"] = "OFAC_FLAGGED"
-                _GENERATED_ALERTS = [a for a in _GENERATED_ALERTS if a["sku_id"] != s["sku_id"]]
-                _GENERATED_ALERTS.append({
-                    "alert_id": str(uuid.uuid4()),
-                    "severity": "CRITICAL",
-                    "sku_id": s["sku_id"],
-                    "message": f"Sanctions hit: Beneficiary matches official OFAC Sanctions List Data Schema blocklist.",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "source": "OFAC Screening System",
-                })
-                
-        # Aging out logic
-        if s["status"] in ["CLEARED", "OFAC_FLAGGED"]:
-            if s["_age"] > 15.0: # Keep finished shipments visible for 15s before dropping
-                if s["status"] == "OFAC_FLAGGED":
-                    _GENERATED_ALERTS = [a for a in _GENERATED_ALERTS if a["sku_id"] != s["sku_id"]]
-                continue # Do not append to new_shipments (drops it)
-                
-        new_shipments.append(s)
-
-    # Spawn new shipments to maintain target count
-    while len(new_shipments) < _TARGET_SHIPMENT_COUNT:
-        new_shipments.append(_spawn_shipment(origins, destinations, checkpoint))
-        
-    _GENERATED_SHIPMENTS = new_shipments
+    # Pass to maintain strict 70:30 ratio
+    pass
 
 def get_shipments(status_filter: str = 'ALL') -> list[dict]:
     _init_synthetic_data()
