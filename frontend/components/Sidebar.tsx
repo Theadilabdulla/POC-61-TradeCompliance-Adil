@@ -214,7 +214,7 @@ export function Sidebar({
             onClick={downloadSampleData}
             className="w-full bg-[#111827] border border-[#38BDF8]/40 hover:border-[#38BDF8] text-[#38BDF8] py-2 rounded-xl flex items-center justify-center gap-2 transition-all font-bold tracking-wider text-[11px]"
           >
-            <Download className="w-3 h-3" /> DOWNLOAD DATA
+            <Download className="w-3 h-3" /> DOWNLOAD SAMPLE DATA
           </button>
         </div>
       </aside>
