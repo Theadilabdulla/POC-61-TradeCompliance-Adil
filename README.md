@@ -47,7 +47,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Boot the FastAPI server
-uvicorn main:app --port 8000
+uvicorn backend.main:app --port 8000
 ```
 *The API will be available at `http://localhost:8000`.*
 
